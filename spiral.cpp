@@ -10,25 +10,52 @@ using namespace std;
 
 int main() {
     const int N = SimulationDefaults::bodyCount;
+    int configurationChoice;
     double tvelMean;
     double tvelStd;
     double rvelMean;
     double rvelStd;
 
-    cout << "Mean tangential circular multiplier (vt/vc): ";
-    cin >> tvelMean;
-
-    cout << "Std of tangential circular multiplier: ";
-    cin >> tvelStd;
-
-    cout << "Mean radial circular fraction (vr/vc): ";
-    cin >> rvelMean;
-
-    cout << "Std of radial circular fraction: ";
-    cin >> rvelStd;
+    cout << "Choose configuration (1-4):" << endl;
+    cout << "1. R=48, position-independent Gaussian velocity" << endl;
+    cout << "2. R=48, circular-reference Gaussian multiplier" << endl;
+    cout << "3. R=120, position-independent Gaussian velocity" << endl;
+    cout << "4. R=120, circular-reference Gaussian multiplier" << endl;
+    cout << "Configuration: ";
+    cin >> configurationChoice;
 
     SimulationConfig config;
     config.bodyCount = N;
+    applyConfiguration(config, configurationChoice);
+
+    if (config.velocityMode == VelocityInitializationMode::CircularReferenceGaussian) {
+        cout << "Tangential circular multiplier mean: ";
+    } else {
+        cout << "Tangential velocity mean: ";
+    }
+    cin >> tvelMean;
+
+    if (config.velocityMode == VelocityInitializationMode::CircularReferenceGaussian) {
+        cout << "Tangential circular multiplier std: ";
+    } else {
+        cout << "Tangential velocity std: ";
+    }
+    cin >> tvelStd;
+
+    if (config.velocityMode == VelocityInitializationMode::CircularReferenceGaussian) {
+        cout << "Radial circular multiplier mean: ";
+    } else {
+        cout << "Radial velocity mean: ";
+    }
+    cin >> rvelMean;
+
+    if (config.velocityMode == VelocityInitializationMode::CircularReferenceGaussian) {
+        cout << "Radial circular multiplier std: ";
+    } else {
+        cout << "Radial velocity std: ";
+    }
+    cin >> rvelStd;
+
     config.tangentVelocityMean = tvelMean;
     config.tangentVelocityStd = tvelStd;
     config.radialVelocityMean = rvelMean;
@@ -36,7 +63,7 @@ int main() {
 
     GravitySimulator simulator(config);
     ViewConfig view;
-    view.scale = 60.0;
+    view.scale = viewScaleForConfiguration(config.configurationId);
     DistributionGrid grid(view, simulator.minMass(), simulator.maxMass());
     SpiralAnalyzer analyzer(simulator);
     DistributionLogger logger(grid, N, tvelMean, tvelStd, rvelMean, rvelStd);
@@ -53,6 +80,7 @@ int main() {
 
     logger.prepare(simulator, steps, dt, ignoreSteps, analyzeInterval);
     latestMetrics = analyzer.computeMetrics();
+    simulator.computeForces();
 
     cout << "Number of bodies = " << N << endl;
     cout << "Using dt = " << dt << endl;
@@ -61,7 +89,6 @@ int main() {
          << config.linearAttractionGravityMultiplier << endl;
 
     for (int t = 0; t < steps; t++) {
-        simulator.computeForces();
         simulator.step(dt);
         if (simulator.gasDampingInterval() > 0 &&
             (t + 1) % simulator.gasDampingInterval() == 0) {

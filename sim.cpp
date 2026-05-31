@@ -20,9 +20,15 @@ using namespace std;
 
 class SimulationWindow {
 public:
-    SimulationWindow(double tvelMean, double tvelStd, double rvelMean, double rvelStd)
+    SimulationWindow(
+        double tvelMean,
+        double tvelStd,
+        double rvelMean,
+        double rvelStd,
+        int configurationId
+    )
         : window_(sf::VideoMode({1100, 800}), "N-body Spiral Simulator"),
-          view_(sf::FloatRect({-70.0f, -52.0f}, {140.0f, 104.0f})),
+          view_(initialView(configurationId)),
           tvelMean_(tvelMean),
           tvelStd_(tvelStd),
           rvelMean_(rvelMean),
@@ -153,6 +159,14 @@ private:
     double rvelStd_;
     const size_t trailLength_ = 80;
 
+    static sf::FloatRect initialView(int configurationId) {
+        if (normalizedConfigurationId(configurationId) >= 3) {
+            return sf::FloatRect({-140.0f, -105.0f}, {280.0f, 210.0f});
+        }
+
+        return sf::FloatRect({-70.0f, -52.0f}, {140.0f, 104.0f});
+    }
+
     void drawTrails() {
         for (const deque<sf::Vector2f>& trail : trails_) {
             if (trail.size() < 2) {
@@ -224,8 +238,8 @@ private:
             << " / " << simulator.gasDampingInterval() << '\n'
             << "m2 log score/pitch = " << metrics.m2LogSpiral.score
             << " / " << metrics.m2LogSpiral.pitchAngleDegrees << '\n'
-            << "vt/vc mean/std = " << tvelMean_ << " / " << tvelStd_ << '\n'
-            << "vr/vc mean/std = " << rvelMean_ << " / " << rvelStd_ << '\n'
+            << "vt velocity mean/std = " << tvelMean_ << " / " << tvelStd_ << '\n'
+            << "vr velocity mean/std = " << rvelMean_ << " / " << rvelStd_ << '\n'
             << (paused_ ? "PAUSED" : "RUNNING")
             << "  space: pause  +/-: zoom  drag: pan";
 
@@ -717,25 +731,52 @@ static double unwrapAngleDelta(double delta) {
 
 int main() {
     const int N = SimulationDefaults::bodyCount;
+    int configurationChoice;
     double tvelMean;
     double tvelStd;
     double rvelMean;
     double rvelStd;
 
-    cout << "Mean tangential circular multiplier (vt/vc): ";
-    cin >> tvelMean;
-
-    cout << "Std of tangential circular multiplier: ";
-    cin >> tvelStd;
-
-    cout << "Mean radial circular fraction (vr/vc): ";
-    cin >> rvelMean;
-
-    cout << "Std of radial circular fraction: ";
-    cin >> rvelStd;
+    cout << "Choose configuration (1-4):" << endl;
+    cout << "1. R=48, position-independent Gaussian velocity" << endl;
+    cout << "2. R=48, circular-reference Gaussian multiplier" << endl;
+    cout << "3. R=120, position-independent Gaussian velocity" << endl;
+    cout << "4. R=120, circular-reference Gaussian multiplier" << endl;
+    cout << "Configuration: ";
+    cin >> configurationChoice;
 
     SimulationConfig config;
     config.bodyCount = N;
+    applyConfiguration(config, configurationChoice);
+
+    if (config.velocityMode == VelocityInitializationMode::CircularReferenceGaussian) {
+        cout << "Tangential circular multiplier mean: ";
+    } else {
+        cout << "Tangential velocity mean: ";
+    }
+    cin >> tvelMean;
+
+    if (config.velocityMode == VelocityInitializationMode::CircularReferenceGaussian) {
+        cout << "Tangential circular multiplier std: ";
+    } else {
+        cout << "Tangential velocity std: ";
+    }
+    cin >> tvelStd;
+
+    if (config.velocityMode == VelocityInitializationMode::CircularReferenceGaussian) {
+        cout << "Radial circular multiplier mean: ";
+    } else {
+        cout << "Radial velocity mean: ";
+    }
+    cin >> rvelMean;
+
+    if (config.velocityMode == VelocityInitializationMode::CircularReferenceGaussian) {
+        cout << "Radial circular multiplier std: ";
+    } else {
+        cout << "Radial velocity std: ";
+    }
+    cin >> rvelStd;
+
     config.tangentVelocityMean = tvelMean;
     config.tangentVelocityStd = tvelStd;
     config.radialVelocityMean = rvelMean;
@@ -743,11 +784,11 @@ int main() {
 
     GravitySimulator simulator(config);
     ViewConfig view;
-    view.scale = 60.0;
+    view.scale = viewScaleForConfiguration(config.configurationId);
     DistributionGrid grid(view, simulator.minMass(), simulator.maxMass());
     SpiralAnalyzer analyzer(simulator);
     DistributionLogger logger(grid, N, tvelMean, tvelStd, rvelMean, rvelStd);
-    SimulationWindow display(tvelMean, tvelStd, rvelMean, rvelStd);
+    SimulationWindow display(tvelMean, tvelStd, rvelMean, rvelStd, config.configurationId);
 
     int steps = 2000;
     double dt = 0.2;
@@ -768,6 +809,7 @@ int main() {
 
     logger.prepare(simulator, steps, dt, ignoreSteps, analyzeInterval);
     latestMetrics = analyzer.computeMetrics();
+    simulator.computeForces();
 
     cout << "Number of bodies = " << N << endl;
     cout << "Using dt = " << dt << endl;
@@ -792,7 +834,6 @@ int main() {
             continue;
         }
 
-        simulator.computeForces();
         simulator.step(dt);
         if (simulator.gasDampingInterval() > 0 &&
             (t + 1) % simulator.gasDampingInterval() == 0) {

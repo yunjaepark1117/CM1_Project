@@ -19,31 +19,32 @@ struct BatchRequest {
     unsigned int seed;
 };
 
+static const int batchConfigurationChoice = 1;
+
 static const vector<BatchRequest> requests = {
-    // {vt/vc mean, vt/vc std, vr/vc mean, vr/vc std, random seed}
+    // For configurations 1/3: {tangential velocity mean, std, radial velocity mean, std, seed}
+    // For configurations 2/4: {tangential circular multiplier mean, std,
+    //                          radial circular multiplier mean, std, seed}
+    
+   
+  
+
+    {0, 0.09, 0, 0.09, 44},
+    {0, 0.09, 0, 0.09, 45},
     
 
-    {0, 0.04, 0, 0.04, 46},
-    {0, 0.04, 0, 0.04, 47},
-    {0, 0.04, 0, 0.04, 48},
-    {0, 0.04, 0, 0.04, 49},
-    {0, 0.04, 0, 0.04, 50},
+    {0, 0.5, 0, 0.5, 45},
+   
 
-    {0, 0.05, 0, 0.05, 46},
-    {0, 0.05, 0, 0.05, 47},
-    {0, 0.05, 0, 0.05, 48},
-    {0, 0.05, 0, 0.05, 49},
-    {0, 0.05, 0, 0.05, 50},
 
-    {0, 0.06, 0, 0.06, 46},
-    {0, 0.06, 0, 0.06, 47},
-    {0, 0.06, 0, 0.06, 48},
-    {0, 0.06, 0, 0.06, 49},
-    {0, 0.06, 0, 0.06, 50},
 
     
+
     
 
+   
+
+   
 
 };
 
@@ -112,6 +113,7 @@ static void runSingleRequest(
 
     SimulationConfig config;
     config.bodyCount = N;
+    applyConfiguration(config, batchConfigurationChoice);
     config.tangentVelocityMean = request.tvelMean;
     config.tangentVelocityStd = request.tvelStd;
     config.radialVelocityMean = request.rvelMean;
@@ -120,7 +122,7 @@ static void runSingleRequest(
 
     GravitySimulator simulator(config);
     ViewConfig view;
-    view.scale = 60.0;
+    view.scale = viewScaleForConfiguration(config.configurationId);
     DistributionGrid grid(view, simulator.minMass(), simulator.maxMass());
     SpiralAnalyzer analyzer(simulator);
     DistributionLogger logger(
@@ -139,12 +141,14 @@ static void runSingleRequest(
     int savedSnapshots = 0;
 
     cout << "Starting request " << requestIndex << " / " << requestCount
-         << " | vt/vc mean/std = " << request.tvelMean << " / " << request.tvelStd
-         << " | vr/vc mean/std = " << request.rvelMean << " / " << request.rvelStd
+         << " | config " << config.configurationId
+         << " | vt input mean/std = " << request.tvelMean << " / " << request.tvelStd
+         << " | vr input mean/std = " << request.rvelMean << " / " << request.rvelStd
          << " | seed = " << request.seed << endl;
 
     logger.prepare(simulator, steps, dt, ignoreSteps, analyzeInterval);
     latestMetrics = analyzer.computeMetrics();
+    simulator.computeForces();
     printProgressLine(
         requestIndex,
         requestCount,
@@ -155,7 +159,6 @@ static void runSingleRequest(
     );
 
     for (int t = 0; t < steps; t++) {
-        simulator.computeForces();
         simulator.step(dt);
         if (simulator.gasDampingInterval() > 0 &&
             (t + 1) % simulator.gasDampingInterval() == 0) {
@@ -251,9 +254,13 @@ int main() {
     }
 
     cout << "Batch requests = " << requests.size() << endl;
+    cout << "Batch configuration = " << normalizedConfigurationId(batchConfigurationChoice)
+         << " (" << configurationName(batchConfigurationChoice) << ")" << endl;
     cout << "Fixed gas gamma = " << SimulationDefaults::gasVelocityDampingGamma << endl;
-    cout << "Fixed dark matter alpha = "
-         << SimulationDefaults::darkMatterDensityAlpha << endl;
+    SimulationConfig displayConfig;
+    applyConfiguration(displayConfig, batchConfigurationChoice);
+    cout << "Dark matter alpha = "
+         << displayConfig.linearAttractionGravityMultiplier << endl;
 
     chrono::steady_clock::time_point batchStart = chrono::steady_clock::now();
     for (int i = 0; i < static_cast<int>(requests.size()); i++) {

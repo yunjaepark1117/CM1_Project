@@ -161,11 +161,11 @@ public:
         double relativeSigma;
         summarize(a2History, mean, sigma, relativeSigma);
 
-        if (mean > 0.2 && relativeSigma < 0.15) {
+        if (mean > 0.15 && relativeSigma < 0.15) {
             return "Stable two-arm spiral structure detected.";
         }
 
-        if (mean > 0.2) {
+        if (mean > 0.15) {
             return "Transient or fluctuating two-arm spiral structure.";
         }
 
@@ -376,7 +376,7 @@ public:
         int ignoreSteps,
         int analyzeInterval
     ) {
-        std::filesystem::create_directories("spiralSimulLogs");
+        std::filesystem::create_directories(logRootDirectory(simulator));
         runDirectory_ = nextRunDirectory(simulator);
         std::filesystem::create_directories(runDirectory_);
 
@@ -505,18 +505,20 @@ private:
     std::string runDirectory_;
     std::string summaryFilePath_;
 
-    std::string initialConditionFolderName() const {
+    std::string initialConditionFolderName(const GravitySimulator& simulator) const {
         std::ostringstream oss;
-        oss << "tvM" << numberForFolder(tvelMean_)
-            << "_tvS" << numberForFolder(tvelStd_)
-            << "_rvM" << numberForFolder(rvelMean_)
-            << "_rvS" << numberForFolder(rvelStd_);
+        oss << "R" << numberForFolder(simulator.maxInitialRadius())
+            << "_" << velocityFolderToken(simulator.velocityMode())
+            << "_vtM" << numberForFolder(tvelMean_)
+            << "_vtS" << numberForFolder(tvelStd_)
+            << "_vrM" << numberForFolder(rvelMean_)
+            << "_vrS" << numberForFolder(rvelStd_);
         return oss.str();
     }
 
     std::string nextRunDirectory(const GravitySimulator& simulator) const {
         std::ostringstream base;
-        base << "spiralSimulLogs/" << initialConditionFolderName()
+        base << logRootDirectory(simulator) << "/" << initialConditionFolderName(simulator)
              << "_seed" << seedForFolder(simulator.seed());
 
         for (int run = 1; run < 10000; run++) {
@@ -541,11 +543,25 @@ private:
         int analyzeInterval
     ) const {
         fout << "========== Initial Conditions ==========" << '\n';
+        fout << "Configuration id       = " << simulator.configurationId() << '\n';
+        fout << "Configuration          = "
+             << configurationName(simulator.configurationId()) << '\n';
         fout << "Number of bodies       = " << bodyCount_ << '\n';
-        fout << "Mean vt/vc multiplier  = " << tvelMean_ << '\n';
-        fout << "Std vt/vc multiplier   = " << tvelStd_ << '\n';
-        fout << "Mean vr/vc fraction    = " << rvelMean_ << '\n';
-        fout << "Std vr/vc fraction     = " << rvelStd_ << '\n';
+        fout << "Velocity distribution  = "
+             << velocityDistributionName(simulator.velocityMode()) << '\n';
+        fout << "Velocity R dependency  = "
+             << velocityRDependencyText(simulator.velocityMode()) << '\n';
+        fout << "Tangential input mean  = " << tvelMean_ << '\n';
+        fout << "Tangential input std   = " << tvelStd_ << '\n';
+        fout << "Radial input mean      = " << rvelMean_ << '\n';
+        fout << "Radial input std       = " << rvelStd_ << '\n';
+        if (simulator.velocityMode() == VelocityInitializationMode::CircularReferenceGaussian) {
+            fout << "Velocity formula       = v = Normal(vt_mean, vt_std)*vc(R)*e_theta"
+                 << " + Normal(vr_mean, vr_std)*vc(R)*e_r" << '\n';
+        } else {
+            fout << "Velocity formula       = v = Normal(vt_mean, vt_std)*e_theta"
+                 << " + Normal(vr_mean, vr_std)*e_r" << '\n';
+        }
         fout << "Random seed            = " << simulator.seed() << '\n';
         fout << "G                      = " << simulator.gravity() << '\n';
         fout << "Dark matter alpha      = "
@@ -577,13 +593,15 @@ private:
         double stdM2LogSpiral,
         const std::string& result
     ) const {
-        const std::string indexPath = "spiralSimulLogs/analysis_index.csv";
+        const std::string indexPath = logRootDirectory(simulator) + "/analysis_index.csv";
         bool needsHeader = !std::filesystem::exists(indexPath)
             || std::filesystem::file_size(indexPath) == 0;
 
         std::ofstream fout(indexPath, std::ios::app);
         if (needsHeader) {
             fout << "run_directory,"
+                 << "velocity_distribution,"
+                 << "velocity_R_dependency,"
                  << "seed,"
                  << "vt_mean,"
                  << "vt_std,"
@@ -601,6 +619,8 @@ private:
         }
 
         fout << csvEscape(runDirectory_) << ','
+             << csvEscape(velocityDistributionName(simulator.velocityMode())) << ','
+             << csvEscape(velocityRDependencyText(simulator.velocityMode())) << ','
              << simulator.seed() << ','
              << tvelMean_ << ','
              << tvelStd_ << ','
@@ -703,7 +723,7 @@ private:
 
     static std::string numberForFolder(double value) {
         std::ostringstream oss;
-        oss << std::fixed << std::setprecision(2) << value;
+        oss << std::fixed << std::setprecision(4) << value;
         std::string s = oss.str();
 
         for (char& c : s) {
@@ -721,6 +741,10 @@ private:
         std::ostringstream oss;
         oss << std::setw(4) << std::setfill('0') << seed;
         return oss.str();
+    }
+
+    static std::string logRootDirectory(const GravitySimulator& simulator) {
+        return logRootDirectoryForConfiguration(simulator.configurationId());
     }
 
     static std::string gravityFormulaText() {

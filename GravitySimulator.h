@@ -76,6 +76,14 @@ public:
         return config_.seed;
     }
 
+    int configurationId() const {
+        return config_.configurationId;
+    }
+
+    VelocityInitializationMode velocityMode() const {
+        return config_.velocityMode;
+    }
+
     const std::vector<Body>& bodies() const {
         return bodies_;
     }
