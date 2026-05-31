@@ -1,12 +1,12 @@
 sim
 spiral
 batch
+merge_data
 spiralchecker
 simulator
-spiralSimulLogs/
+spiralSimulLogs*/
+Data/
 *.o
 .DS_Store
-spiralSimulLogs1/
-spiralSimulLogs2/
-spiralSimulLogs3/
-spiralSimulLogs4/
+.mplconfig/
+*.png
