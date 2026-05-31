@@ -6,3 +6,7 @@ simulator
 spiralSimulLogs/
 *.o
 .DS_Store
+spiralSimulLogs1/
+spiralSimulLogs2/
+spiralSimulLogs3/
+spiralSimulLogs4/
