@@ -13,32 +13,34 @@ SFML is needed for simulation display and saving snapshots.
 
 ```bash
 brew install sfml
-
+```
 
 ## How to compile:
 
-```markdown
 ## Build
 
-## TO compile all programs:
+## To compile all programs:
 
 ```bash
 make
+```
 
-## FOUR programs are compiled as a result:
+## Four programs are compiled as a result:
 - `sim`: N-body simulator + spiral analyzer with SFML display
-- `spiral`: N-body simulator + spiral analizer without SFML display, simulation logs are saved at ./spiralSimulLogs1, ... ,./spiralSimulLogs4 according to the configuration chosen. Also saves key data in ./spiralSimulLogs*/analysis_index.csv
+- `spiral`: N-body simulator + spiral analyzer without SFML display, simulation logs are saved at ./spiralSimulLogs1, ... ,./spiralSimulLogs4 according to the configuration chosen. Also saves key data in ./spiralSimulLogs*/analysis_index.csv
 - `batch`: runs spiral simulator with multiple initial conditions automatically
-- `merge_data`: merges data in ./spiralSimulLogs*/analysis_index_csv into ./Data/spiralSimulLogs1_merged.csv, ..., ./Data/spiralSimulLogs4_merged.csv
+- `merge_data`: merges data in ./spiralSimulLogs*/analysis_index.csv into ./Data/spiralSimulLogs1_merged.csv, ..., ./Data/spiralSimulLogs4_merged.csv
 
 ## To Run a compile & program:
 ```bash
 make
 ./sim
+```
 
 ```bash
 make
 ./spiral
+```
 
 ...
 
@@ -49,4 +51,3 @@ make
 
 
 ## Refer to the term project paper for more details!
-
